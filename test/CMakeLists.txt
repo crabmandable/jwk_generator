@@ -22,7 +22,7 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
-# ensure only openssl3
+# open ssl 3
 add_definitions(-DOPENSSL_API_COMPAT=30000)
 
 set(test_sources "")

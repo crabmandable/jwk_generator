@@ -10,5 +10,10 @@ class Test : public ::testing::Test {
 };
 
 TEST_F(Test, Test1) {
-    std::cout << JwksGenerator<RSAKeySpec<512>, ECDSAKeySpec<384>>() << std::endl;
+    auto jwks = JwksGenerator<RSAKey<512>, ECDSAKey<384>>();
+    std::cout << jwks << std::endl;
+    std::cout << jwks.get<0>().private_to_pem() << std::endl;
+    std::cout << jwks.get<0>().public_to_pem() << std::endl;
+    std::cout << jwks.get<1>().private_to_pem() << std::endl;
+    std::cout << jwks.get<1>().public_to_pem() << std::endl;
 }

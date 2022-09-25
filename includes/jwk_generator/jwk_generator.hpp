@@ -11,9 +11,12 @@
 #include <openssl/ecdsa.h>
 #include "openssl/evp.h"
 #include <memory>
+#include <tuple>
 #include <stdint.h>
 #include <openssl/err.h>
 #include <openssl/core_names.h>
+#include <openssl/bio.h>
+#include <openssl/pem.h>
 #include "cppcodec/base64_url_unpadded.hpp"
 #include "uuid.hpp"
 
@@ -43,22 +46,20 @@ namespace jwk_generator {
     };
 
     template<size_t nBits>
-        struct RSAKeySpec {
-            std::string kid;
+        struct RSAKey {
             std::shared_ptr<EVP_PKEY> keyPair;
             std::string modulous;
             std::string exponent;
 
-            RSAKeySpec() {
+            RSAKey() {
                 using namespace detail;
-                kid = detail::generate_uuid_v4();
 
                 size_t len;
                 keyPair = {EVP_RSA_gen(nBits), EVP_PKEY_free};
                 if (!keyPair) {
                     throw std::runtime_error(std::string("Unable to generate rsa key: ") + OpenSSLLastError());
                 }
-                std::shared_ptr<BIGNUM> modBN = {BN_new(), BN_free};
+                auto modBN = std::shared_ptr<BIGNUM>{BN_new(), BN_free};
                 if (!modBN) {
                     throw std::runtime_error(std::string("Unable to allocate BN") + OpenSSLLastError());
                 }
@@ -73,7 +74,7 @@ namespace jwk_generator {
                 BN_bn2bin(modBN.get(), modBin.data());
                 modulous = cppcodec::base64_url_unpadded::encode(modBin);
 
-                std::shared_ptr<BIGNUM> exBN = {BN_new(), BN_free};
+                auto exBN = std::shared_ptr<BIGNUM>{BN_new(), BN_free};
                 if (!exBN) {
                     throw std::runtime_error(std::string("Unable to allocate BN") + OpenSSLLastError());
                 }
@@ -92,29 +93,26 @@ namespace jwk_generator {
             void insertJson(nlohmann::json& json) const {
                 json["alg"] = "RS" + std::to_string(nBits);
                 json["kty"] = "RSA";
-                json["kid"] = kid;
                 json["e"] = exponent;
                 json["n"] = modulous;
             }
         };
 
     template<size_t nBits>
-        struct ECDSAKeySpec {
-            std::string kid;
+        struct ECDSAKey {
             std::shared_ptr<EVP_PKEY> keyPair;
             std::string pointX;
             std::string pointY;
 
-            ECDSAKeySpec() {
+            ECDSAKey() {
                 using namespace detail;
-                kid = detail::generate_uuid_v4();
 
                 size_t len;
                 keyPair = {EVP_EC_gen(ECDSABitsToCurve(nBits)), EVP_PKEY_free};
                 if (!keyPair) {
                     throw std::runtime_error(std::string("Unable to generate ec key: ") + OpenSSLLastError());
                 }
-                std::shared_ptr<BIGNUM> xBN = {BN_new(), BN_free};
+                auto xBN = std::shared_ptr<BIGNUM>{BN_new(), BN_free};
                 if (!xBN) {
                     throw std::runtime_error(std::string("Unable to allocate BN") + OpenSSLLastError());
                 }
@@ -129,7 +127,7 @@ namespace jwk_generator {
                 BN_bn2bin(xBN.get(), xBin.data());
                 pointX = cppcodec::base64_url_unpadded::encode(xBin);
 
-                std::shared_ptr<BIGNUM> yBN = {BN_new(), BN_free};
+                auto yBN = std::shared_ptr<BIGNUM>(BN_new(), BN_free);
                 if (!yBN) {
                     throw std::runtime_error(std::string("Unable to allocate BN") + OpenSSLLastError());
                 }
@@ -147,7 +145,6 @@ namespace jwk_generator {
 
             void insertJson(nlohmann::json& json) const {
                 json["alg"] = "ES" + std::to_string(nBits);
-                json["kid"] = kid;
                 json["kty"] = "EC";
                 json["x"] = pointX;
                 json["y"] = pointY;
@@ -156,30 +153,83 @@ namespace jwk_generator {
         };
 
     template <typename KeySpec>
-        struct JwkGenerator {
-            static nlohmann::json to_json() {
-                nlohmann::json json;
-                auto key = KeySpec();
-                key.insertJson(json);
-                return json;
-            }
+    class JwkGenerator {
+        private:
+        KeySpec key;
 
-            operator std::string () const {
-                return to_json().dump();
+        std::string to_pem(std::function<int(BIO*, EVP_PKEY*)> writeKeyToBIO) {
+            using namespace detail;
+            auto pemKeyBIO = std::shared_ptr<BIO>(BIO_new(BIO_s_secmem()), BIO_free);
+            if (!pemKeyBIO) {
+                throw std::runtime_error(std::string("Unable to retrieve public key: ") + OpenSSLLastError());
             }
+            EVP_PKEY* tmpEVP = key.keyPair.get();
+            int result = writeKeyToBIO(pemKeyBIO.get(), tmpEVP);
+            if (!result) {
+                throw std::runtime_error(std::string("Unable to convert key to pem: ") + OpenSSLLastError());
+            }
+            char* buffer;
+            auto len = BIO_get_mem_data(pemKeyBIO.get(), &buffer);
+            if (!len) {
+                throw std::runtime_error(std::string("Unable to retrieve key from bio: ") + OpenSSLLastError());
+            }
+            std::string pem;
+            pem.resize(len);
+            std::memcpy(pem.data(), buffer, len);
+            return pem;
+        }
 
-            friend std::ostream & operator<< (std::ostream &out, const JwkGenerator& e) {
-                out << std::string(e);
-                return out;
-            }
-        };
+        public:
+        std::string kid;
+
+        JwkGenerator() {
+            kid = detail::generate_uuid_v4();
+        }
+
+        std::string private_to_pem() {
+            return to_pem([](auto bio, auto key) {
+                return PEM_write_bio_PrivateKey(bio, key, NULL, NULL, 0, 0, NULL);
+            });
+        }
+
+        std::string public_to_pem() {
+            return to_pem([](auto bio, auto key) {
+                return PEM_write_bio_PUBKEY(bio, key);
+            });
+        }
+
+        nlohmann::json to_json() const {
+            nlohmann::json json;
+            key.insertJson(json);
+            json["kid"] = kid;
+            return json;
+        }
+
+        operator std::string () const {
+            return to_json().dump();
+        }
+
+        friend std::ostream & operator<< (std::ostream &out, const JwkGenerator& e) {
+            out << std::string(e);
+            return out;
+        }
+    };
 
     template <typename... KeySpec>
         struct JwksGenerator {
-            static nlohmann::json to_json() {
-                nlohmann::json jwks;
-                jwks["keys"] = {JwkGenerator<KeySpec>().to_json()...};
+            std::tuple<JwkGenerator<KeySpec>...> keys;
+            nlohmann::json to_json() const {
+                using namespace nlohmann;
+                json jwks;
+                std::apply([&jwks](const auto&... jwk) {
+                    jwks["keys"] = std::array<json, std::tuple_size<decltype(keys)>{}> {jwk.to_json()...};
+                }, keys);
                 return jwks;
+            }
+
+            template <size_t idx>
+            auto get() {
+                return std::get<idx>(keys);
             }
 
             operator std::string () const {
