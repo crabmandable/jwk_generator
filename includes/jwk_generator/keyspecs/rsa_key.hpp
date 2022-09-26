@@ -21,7 +21,7 @@ namespace jwk_generator {
         std::string modulous;
         std::string exponent;
 
-        RSAKey(RSAKey&) = delete;
+        RSAKey(const RSAKey&) = delete;
         RSAKey& operator = (const RSAKey&) = delete;
         RSAKey(RSAKey&&) = default;
         RSAKey& operator = (RSAKey&&) = default;
@@ -90,4 +90,8 @@ namespace jwk_generator {
             json["n"] = modulous;
         }
     };
+
+    using RS256 = RSAKey<256>;
+    using RS384 = RSAKey<384>;
+    using RS512 = RSAKey<512>;
 };

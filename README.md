@@ -4,7 +4,7 @@
 
 ```c++
 using namespace jwk_generator;
-std::cout << JwksGenerator<RSAKey<512>, ECDSAKey<384>>() << std::endl;
+std::cout << JwkSetGenerator<RS512, ES384>() << std::endl;
 ```
 
 ```json
@@ -14,12 +14,12 @@ std::cout << JwksGenerator<RSAKey<512>, ECDSAKey<384>>() << std::endl;
 An individual jwk can also be exported as `.pem`
 ```c++
 using namespace jwk_generator;
-JwkGenerator<ECDSAKey<512>> jwk;
+JwkGenerator<ES512> jwk;
 std::cout << jwk.public_to_pem() << std::endl;
 std::cout << jwk.private_to_pem() << std::endl;
 
 // or using a set:
-JwkGenerator<ECDSAKey<512>, <ECDSAKey<256>> jwks;
+JwkGenerator<ES512, E256> jwks;
 std::cout << jwks.get<0>().public_to_pem() << std::endl;
 std::cout << jwks.get<0>().private_to_pem() << std::endl;
 std::cout << jwks.get<1>().public_to_pem() << std::endl;
@@ -29,7 +29,7 @@ std::cout << jwks.get<1>().private_to_pem() << std::endl;
 Helper function to generate a lot of keys (of the same type)
 ```c++
 using namespace jwk_generator;
-auto jwks = make_jwks<ECDSAKey<512>(100);
+auto jwks = make_jwks<ES512>(100);
 std::cout << jwks << std::endl;
 ```
 
@@ -56,22 +56,22 @@ I wrote it for testing, and there is no guarantee that it generates keys in a se
     key according to the `KeySpec` and a jwk containing the public key info when it is
     constructed.
 
-* `JwksGenerator<KeySpec...>`
+* `JwkSetGenerator<KeySpec...>`
 
-    The `JwksGenerator` templates is very similar except it takes many key specs
+    The `JwkSetGenerator` templates is very similar except it takes many key specs
 
-* `JwksSingleSpecGenerator<KeySpec>`
+* `JwkSetSingleSpecGenerator<KeySpec>`
 
-    The `JwksSignleSpecGenerator` templates is very similar except it only takes a single
+    The `JwkSetSingleSpecGenerator` templates is very similar except it only takes a single
     type of key
 
 ### The key specs:
-* `ECDSAKey<nBits>`
+* `ECKey<nBits>`, aliased as `ES256`, `ES384`, `ES512`
 
     The `ECDSA` key spec defines eliptic curve keys. The `nBits` determines the curve,
     and the hashing algorithm according to rfc7515
 
-* `RSAKey<shaBits>`
+* `RSAKey<shaBits>`, aliased as `RS256`, `RS384`, `RS512`
 
     The `RSAKey` key spec defines an RSA key. The number bits used to generate the key
     is always 2048, and the exponent is always 65537. The `shaBits` param only changes

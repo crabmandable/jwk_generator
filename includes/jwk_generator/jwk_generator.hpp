@@ -14,14 +14,14 @@
 #include "jwk_generator/libs/uuid.hpp"
 #include "jwk_generator/libs/json.hpp"
 #include "jwk_generator/errors.hpp"
-#include "jwk_generator/keyspecs/ecdsa_key.hpp"
+#include "jwk_generator/keyspecs/ec_key.hpp"
 #include "jwk_generator/keyspecs/rsa_key.hpp"
 
 namespace jwk_generator {
     template <typename KeySpec>
     class JwkGenerator {
         private:
-        JwkGenerator(JwkGenerator&) = delete;
+        JwkGenerator(const JwkGenerator&) = delete;
         JwkGenerator& operator = (const JwkGenerator&) = delete;
 
         KeySpec key;
@@ -88,13 +88,13 @@ namespace jwk_generator {
     };
 
     template <typename... KeySpec>
-    class JwksGenerator {
+    class JwkSetGenerator {
         private:
-        JwksGenerator(JwksGenerator&) = delete;
+        JwkSetGenerator(JwkSetGenerator&) = delete;
 
         public:
-        JwksGenerator() = default;
-        JwksGenerator(std::tuple<JwkGenerator<KeySpec>...>&& keys) : keys{keys} { }
+        JwkSetGenerator() = default;
+        JwkSetGenerator(std::tuple<JwkGenerator<KeySpec>...>&& keys) : keys{keys} { }
 
         const std::tuple<JwkGenerator<KeySpec>...> keys;
 
@@ -116,19 +116,19 @@ namespace jwk_generator {
             return to_json().dump();
         }
 
-        friend std::ostream & operator<< (std::ostream &out, const JwksGenerator& e) {
+        friend std::ostream & operator<< (std::ostream &out, const JwkSetGenerator& e) {
             out << std::string(e);
             return out;
         }
     };
 
     template <typename KeySpec, template < class ... > class Container, class ... Args >
-    class JwksSingleSpecGenerator {
+    class JwkSetSingleSpecGenerator {
         private:
-        JwksSingleSpecGenerator(JwksSingleSpecGenerator&) = delete;
+        JwkSetSingleSpecGenerator(JwkSetSingleSpecGenerator&) = delete;
         public:
-        JwksSingleSpecGenerator() = default;
-        JwksSingleSpecGenerator(Container<JwkGenerator<KeySpec>, Args...>&& keys) : keys{std::move(keys)} { }
+        JwkSetSingleSpecGenerator() = default;
+        JwkSetSingleSpecGenerator(Container<JwkGenerator<KeySpec>, Args...>&& keys) : keys{std::move(keys)} { }
         Container<JwkGenerator<KeySpec>, Args...> keys;
 
         nlohmann::json to_json() const {
@@ -154,7 +154,7 @@ namespace jwk_generator {
             return to_json().dump();
         }
 
-        friend std::ostream & operator<< (std::ostream &out, const JwksSingleSpecGenerator& e) {
+        friend std::ostream & operator<< (std::ostream &out, const JwkSetSingleSpecGenerator& e) {
             out << std::string(e);
             return out;
         }
@@ -164,7 +164,7 @@ namespace jwk_generator {
     static auto make_jwks(size_t nKeys) {
         std::vector<JwkGenerator<KeySpec>> keys;
         keys.resize(nKeys);
-        return JwksSingleSpecGenerator(std::move(keys));
+        return JwkSetSingleSpecGenerator(std::move(keys));
     }
 
 };

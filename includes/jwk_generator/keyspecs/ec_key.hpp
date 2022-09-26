@@ -15,7 +15,7 @@
 
 namespace jwk_generator {
     template<size_t nBits>
-    class ECDSAKey {
+    class ECKey {
         private:
 #ifdef JWKGEN_OPENSSL_3_0
         static constexpr const char* ecdsa_bit_to_curve() {
@@ -30,7 +30,7 @@ namespace jwk_generator {
                     return SN_secp384r1;
                 }
             }
-            throw std::runtime_error("Unsupported ecdsa algorithm");
+            throw std::runtime_error("Unsupported EC algorithm");
         }
 #else
         static constexpr int ecdsa_bit_to_curve() {
@@ -45,7 +45,7 @@ namespace jwk_generator {
                     return NID_secp384r1;
                 }
             }
-            throw std::runtime_error("Unsupported ecdsa algorithm");
+            throw std::runtime_error("Unsupported EC algorithm");
         }
 #endif
         public:
@@ -53,11 +53,11 @@ namespace jwk_generator {
         std::string pointX;
         std::string pointY;
 
-        ECDSAKey(ECDSAKey&) = delete;
-        ECDSAKey& operator = (const ECDSAKey&) = delete;
-        ECDSAKey(ECDSAKey&&) = default;
-        ECDSAKey& operator = (ECDSAKey&&) = default;
-        ECDSAKey() {
+        ECKey(const ECKey&) = delete;
+        ECKey& operator = (const ECKey&) = delete;
+        ECKey(ECKey&&) = default;
+        ECKey& operator = (ECKey&&) = default;
+        ECKey() {
             using namespace detail;
 
 #ifdef JWKGEN_OPENSSL_3_0
@@ -135,4 +135,8 @@ namespace jwk_generator {
             json["crv"] = std::string("P-") + std::to_string(nBits);
         }
     };
+
+    using ES256 = ECKey<256>;
+    using ES384 = ECKey<384>;
+    using ES512 = ECKey<512>;
 };
