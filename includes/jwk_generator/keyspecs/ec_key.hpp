@@ -48,7 +48,23 @@ namespace jwk_generator {
             throw std::runtime_error("Unsupported EC algorithm");
         }
 #endif
+
+        static constexpr size_t bits_to_point_size() {
+            switch(shaBits) {
+                case 256: {
+                    return 32;
+                }
+                case 512: {
+                    return 66;
+                }
+                case 384: {
+                    return 48;
+                }
+            }
+            throw std::runtime_error("Unsupported EC algorithm");
+        }
         public:
+        static constexpr size_t pointSize = bits_to_point_size();
         std::shared_ptr<EVP_PKEY> keyPair;
         std::string pointX;
         std::string pointY;
@@ -114,16 +130,14 @@ namespace jwk_generator {
             }
 #endif
 
-            size_t len = BN_num_bytes(xBN);
             std::vector<uint8_t> xBin;
-            xBin.resize(len);
-            BN_bn2bin(xBN, xBin.data());
+            xBin.resize(pointSize);
+            BN_bn2binpad(xBN, xBin.data(), pointSize);
             pointX = base64_url_encode(xBin);
 
-            len = BN_num_bytes(yBN);
             std::vector<uint8_t> yBin;
-            yBin.resize(len);
-            BN_bn2bin(yBN, yBin.data());
+            yBin.resize(pointSize);
+            BN_bn2binpad(yBN, yBin.data(), pointSize);
             pointY = base64_url_encode(yBin);
         }
 
