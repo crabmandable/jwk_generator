@@ -14,12 +14,12 @@
 #endif
 
 namespace jwk_generator {
-    template<size_t nBits>
+    template<size_t shaBits>
     class ECKey {
         private:
 #ifdef JWKGEN_OPENSSL_3_0
         static constexpr const char* ecdsa_bit_to_curve() {
-            switch(nBits) {
+            switch(shaBits) {
                 case 256: {
                     return SN_X9_62_prime256v1;
                 }
@@ -34,7 +34,7 @@ namespace jwk_generator {
         }
 #else
         static constexpr int ecdsa_bit_to_curve() {
-            switch(nBits) {
+            switch(shaBits) {
                 case 256: {
                     return NID_X9_62_prime256v1;
                 }
@@ -128,11 +128,15 @@ namespace jwk_generator {
         }
 
         void insert_json(nlohmann::json& json) const {
-            json["alg"] = "ES" + std::to_string(nBits);
+            std::string crv = std::string("P-") + std::to_string(shaBits);
+            if (shaBits == 512) {
+                crv = "P-521";
+            }
+            json["alg"] = "ES" + std::to_string(shaBits);
             json["kty"] = "EC";
             json["x"] = pointX;
             json["y"] = pointY;
-            json["crv"] = std::string("P-") + std::to_string(nBits);
+            json["crv"] = crv;
         }
     };
 

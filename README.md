@@ -33,8 +33,8 @@ auto jwks = make_jwks<ES512>(100);
 std::cout << jwks << std::endl;
 ```
 
-Implementations are provided for RS or ES keys, according to the
-[Json Web Signature standard rfc7515](https://www.rfc-editor.org/rfc/rfc7515.html)
+Implementations are provided for RSASSA-PKCS1-v1_5 (RSA) or ECDSA (EC) keys, according to the
+[JSON Web Algorithm standard rfc7518](https://www.rfc-editor.org/rfc/rfc7518.html)
 
 #### OpenSSL 1.1.1 or 3.0
 When compiled with OpenSSL 3.0, the newer APIs will be used to avoid any deprecation warnings
@@ -66,10 +66,10 @@ I wrote it for testing, and there is no guarantee that it generates keys in a se
     type of key
 
 ### The key specs:
-* `ECKey<nBits>`, aliased as `ES256`, `ES384`, `ES512`
+* `ECKey<shaBits>`, aliased as `ES256`, `ES384`, `ES512`
 
-    The `ECDSA` key spec defines eliptic curve keys. The `nBits` determines the curve,
-    and the hashing algorithm according to rfc7515
+    The `ECDSA` key spec defines eliptic curve keys. The `shaBits` determines the curve,
+    and the hashing algorithm according to [rfc7518](https://www.rfc-editor.org/rfc/rfc7518#section-3.4)
 
 * `RSAKey<shaBits>`, aliased as `RS256`, `RS384`, `RS512`
 
