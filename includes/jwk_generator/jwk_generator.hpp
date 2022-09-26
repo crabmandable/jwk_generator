@@ -23,7 +23,7 @@ namespace jwk_generator {
         private:
         KeySpec key;
 
-        std::string to_pem(std::function<int(BIO*, EVP_PKEY*)> writeKeyToBIO) {
+        std::string to_pem(std::function<int(BIO*, EVP_PKEY*)> writeKeyToBIO) const {
             using namespace detail;
             auto pemKeyBIO = std::shared_ptr<BIO>(BIO_new(BIO_s_secmem()), BIO_free);
             if (!pemKeyBIO) {
@@ -52,13 +52,13 @@ namespace jwk_generator {
             kid = detail::generate_uuid_v4();
         }
 
-        std::string private_to_pem() {
+        std::string private_to_pem() const {
             return to_pem([](auto bio, auto key) {
                 return PEM_write_bio_PrivateKey(bio, key, NULL, NULL, 0, 0, NULL);
             });
         }
 
-        std::string public_to_pem() {
+        std::string public_to_pem() const {
             return to_pem([](auto bio, auto key) {
                 return PEM_write_bio_PUBKEY(bio, key);
             });
@@ -82,30 +82,78 @@ namespace jwk_generator {
     };
 
     template <typename... KeySpec>
-        struct JwksGenerator {
-            std::tuple<JwkGenerator<KeySpec>...> keys;
-            nlohmann::json to_json() const {
-                using namespace nlohmann;
-                json jwks;
-                std::apply([&jwks](const auto&... jwk) {
-                    jwks["keys"] = std::array<json, std::tuple_size<decltype(keys)>{}> {jwk.to_json()...};
-                }, keys);
-                return jwks;
-            }
+    class JwksGenerator {
+        public:
+        JwksGenerator() = default;
+        JwksGenerator(std::tuple<JwkGenerator<KeySpec>...> keys) : keys{keys} { }
 
-            template <size_t idx>
-            auto get() {
-                return std::get<idx>(keys);
-            }
+        const std::tuple<JwkGenerator<KeySpec>...> keys;
 
-            operator std::string () const {
-                return to_json().dump();
-            }
+        nlohmann::json to_json() const {
+            using namespace nlohmann;
+            json jwks;
+            std::apply([&jwks](const auto&... jwk) {
+                jwks["keys"] = std::array<json, std::tuple_size<decltype(keys)>{}> {jwk.to_json()...};
+            }, keys);
+            return jwks;
+        }
 
-            friend std::ostream & operator<< (std::ostream &out, const JwksGenerator& e) {
-                out << std::string(e);
-                return out;
+        template <size_t idx>
+        const auto& get() const {
+            return std::get<idx>(keys);
+        }
+
+        operator std::string () const {
+            return to_json().dump();
+        }
+
+        friend std::ostream & operator<< (std::ostream &out, const JwksGenerator& e) {
+            out << std::string(e);
+            return out;
+        }
+    };
+
+    template <typename KeySpec, template < class ... > class Container, class ... Args >
+    class JwksSingleSpecGenerator {
+        public:
+        JwksSingleSpecGenerator() = default;
+        JwksSingleSpecGenerator(Container<JwkGenerator<KeySpec>, Args...> keys) : keys{keys} { }
+        Container<JwkGenerator<KeySpec>, Args...> keys;
+
+        nlohmann::json to_json() const {
+            using namespace nlohmann;
+            json jwks;
+            jwks["keys"] = json::array();
+            for (const auto& jwk: keys) {
+                jwks["keys"].push_back(jwk.to_json());
             }
-        };
+            return jwks;
+        }
+
+        const JwkGenerator<KeySpec>& operator[] (size_t idx) const {
+            return keys[idx];
+        }
+
+        template <size_t idx>
+        const JwkGenerator<KeySpec>& get() const {
+            return keys[idx];
+        }
+
+        operator std::string () const {
+            return to_json().dump();
+        }
+
+        friend std::ostream & operator<< (std::ostream &out, const JwksSingleSpecGenerator& e) {
+            out << std::string(e);
+            return out;
+        }
+    };
+
+    template<typename KeySpec>
+    static auto make_jwks(size_t nKeys) {
+        std::vector<JwkGenerator<KeySpec>> keys;
+        keys.resize(nKeys);
+        return JwksSingleSpecGenerator(keys);
+    }
 
 };

@@ -18,6 +18,21 @@ TEST_F(Test, Test1) {
     std::cout << jwks.get<1>().public_to_pem() << std::endl;
 }
 
+TEST_F(Test, ManyKeys) {
+    auto jwks = make_jwks<ECDSAKey<512>>(100);
+    std::cout << jwks << std::endl;
+}
+
+TEST_F(Test, ManyKeysAgain) {
+    std::vector<JwkGenerator<ECDSAKey<256>>> keys;
+    keys.resize(100);
+    auto jwks = JwksSingleSpecGenerator(keys);
+    std::cout << jwks << std::endl;
+    for (size_t i = 0; i < keys.size(); i++) {
+        std::cout << jwks[i].public_to_pem() << std::endl;
+    }
+}
+
 TEST_F(Test, ECDSA256) {
     auto jwk = JwkGenerator<ECDSAKey<256>>();
     std::cout << jwk << std::endl;
