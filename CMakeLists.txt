@@ -8,11 +8,12 @@ if(NOT CMAKE_CXX_STANDARD)
     set(CMAKE_CXX_STANDARD ${STD})
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
 elseif(${CMAKE_CXX_STANDARD} LESS ${STD})
-    message(FATAL_ERROR "jwk_generator requires c++${STD} or later")
+    message(FATAL_ERROR
+        "jwk_generator requires c++${STD} or later")
 endif()
 
 # openssl
-find_package(OpenSSL 3.0.5 REQUIRED)
+find_package(OpenSSL 1.1.1 REQUIRED)
 
 # target
 add_library(${PROJECT_NAME} INTERFACE

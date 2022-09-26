@@ -22,9 +22,6 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
-# open ssl 3
-add_definitions(-DOPENSSL_API_COMPAT=30000)
-
 set(test_sources "")
 file(GLOB_RECURSE test_sources "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
 add_executable(runTests ${test_sources})
