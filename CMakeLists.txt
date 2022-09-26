@@ -14,18 +14,12 @@ endif()
 # openssl
 find_package(OpenSSL 3.0.5 REQUIRED)
 
-# json
-include(FetchContent)
-FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz)
-FetchContent_MakeAvailable(json)
-
 # target
-add_library(${PROJECT_NAME} INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/includes")
+add_library(${PROJECT_NAME} INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}/includes")
 
 target_include_directories(${PROJECT_NAME} INTERFACE
-    "${CMAKE_CURRENT_SOURCE_DIR}/includes"
-    "${CMAKE_CURRENT_SOURCE_DIR}/lib/cppcodec")
+    "${CMAKE_CURRENT_SOURCE_DIR}/includes")
 
 target_link_libraries(${PROJECT_NAME} INTERFACE
-    nlohmann_json::nlohmann_json
     OpenSSL::Crypto)
