@@ -20,12 +20,11 @@
 namespace jwk_generator {
     template <typename KeySpec>
     class JwkGenerator {
-        private:
-        JwkGenerator(const JwkGenerator&) = delete;
-        JwkGenerator& operator = (const JwkGenerator&) = delete;
-
+        public:
         KeySpec key;
+        std::string kid;
 
+        private:
         std::string to_pem(std::function<int(BIO*, EVP_PKEY*)> writeKeyToBIO) const {
             using namespace detail;
             auto pemKeyBIO = std::shared_ptr<BIO>(BIO_new(BIO_s_secmem()), BIO_free);
@@ -49,8 +48,8 @@ namespace jwk_generator {
         }
 
         public:
-        std::string kid;
-
+        JwkGenerator(const JwkGenerator&) = delete;
+        JwkGenerator& operator = (const JwkGenerator&) = delete;
         JwkGenerator(JwkGenerator&&) = default;
         JwkGenerator& operator = (JwkGenerator&&) = default;
 
