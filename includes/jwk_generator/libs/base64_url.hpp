@@ -1,4 +1,6 @@
-// https://stackoverflow.com/a/13935718
+// altered slightly from the original
+// https://stackoverflow.com/a/180949
+
 #pragma once
 
 #include <vector>
