@@ -53,6 +53,10 @@ namespace jwk_generator {
         std::string pointX;
         std::string pointY;
 
+        ECDSAKey(ECDSAKey&) = delete;
+        ECDSAKey& operator = (const ECDSAKey&) = delete;
+        ECDSAKey(ECDSAKey&&) = default;
+        ECDSAKey& operator = (ECDSAKey&&) = default;
         ECDSAKey() {
             using namespace detail;
 

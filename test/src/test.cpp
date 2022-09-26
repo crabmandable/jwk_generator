@@ -26,7 +26,7 @@ TEST_F(Test, ManyKeys) {
 TEST_F(Test, ManyKeysAgain) {
     std::vector<JwkGenerator<ECDSAKey<256>>> keys;
     keys.resize(100);
-    auto jwks = JwksSingleSpecGenerator(keys);
+    auto jwks = JwksSingleSpecGenerator(std::move(keys));
     std::cout << jwks << std::endl;
     for (size_t i = 0; i < keys.size(); i++) {
         std::cout << jwks[i].public_to_pem() << std::endl;

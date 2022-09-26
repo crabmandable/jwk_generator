@@ -21,6 +21,9 @@ namespace jwk_generator {
     template <typename KeySpec>
     class JwkGenerator {
         private:
+        JwkGenerator(JwkGenerator&) = delete;
+        JwkGenerator& operator = (const JwkGenerator&) = delete;
+
         KeySpec key;
 
         std::string to_pem(std::function<int(BIO*, EVP_PKEY*)> writeKeyToBIO) const {
@@ -47,6 +50,9 @@ namespace jwk_generator {
 
         public:
         std::string kid;
+
+        JwkGenerator(JwkGenerator&&) = default;
+        JwkGenerator& operator = (JwkGenerator&&) = default;
 
         JwkGenerator() {
             kid = detail::generate_uuid_v4();
@@ -83,9 +89,12 @@ namespace jwk_generator {
 
     template <typename... KeySpec>
     class JwksGenerator {
+        private:
+        JwksGenerator(JwksGenerator&) = delete;
+
         public:
         JwksGenerator() = default;
-        JwksGenerator(std::tuple<JwkGenerator<KeySpec>...> keys) : keys{keys} { }
+        JwksGenerator(std::tuple<JwkGenerator<KeySpec>...>&& keys) : keys{keys} { }
 
         const std::tuple<JwkGenerator<KeySpec>...> keys;
 
@@ -115,9 +124,11 @@ namespace jwk_generator {
 
     template <typename KeySpec, template < class ... > class Container, class ... Args >
     class JwksSingleSpecGenerator {
+        private:
+        JwksSingleSpecGenerator(JwksSingleSpecGenerator&) = delete;
         public:
         JwksSingleSpecGenerator() = default;
-        JwksSingleSpecGenerator(Container<JwkGenerator<KeySpec>, Args...> keys) : keys{keys} { }
+        JwksSingleSpecGenerator(Container<JwkGenerator<KeySpec>, Args...>&& keys) : keys{std::move(keys)} { }
         Container<JwkGenerator<KeySpec>, Args...> keys;
 
         nlohmann::json to_json() const {
@@ -153,7 +164,7 @@ namespace jwk_generator {
     static auto make_jwks(size_t nKeys) {
         std::vector<JwkGenerator<KeySpec>> keys;
         keys.resize(nKeys);
-        return JwksSingleSpecGenerator(keys);
+        return JwksSingleSpecGenerator(std::move(keys));
     }
 
 };

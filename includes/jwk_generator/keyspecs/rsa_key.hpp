@@ -21,6 +21,10 @@ namespace jwk_generator {
         std::string modulous;
         std::string exponent;
 
+        RSAKey(RSAKey&) = delete;
+        RSAKey& operator = (const RSAKey&) = delete;
+        RSAKey(RSAKey&&) = default;
+        RSAKey& operator = (RSAKey&&) = default;
         RSAKey() {
             using namespace detail;
 
