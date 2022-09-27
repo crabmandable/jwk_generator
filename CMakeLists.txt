@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.6)
 project(jwk_generator CXX)
-set(PROJECT_VERSION 1)
+set(PROJECT_VERSION 0.1)
 
 # c++17
 set(STD 17)
