@@ -2,16 +2,7 @@
 
 #include "jwk_generator/libs/json.hpp"
 #include "jwk_generator/errors.hpp"
-
-#include "openssl/evp.h"
-#include <openssl/ec.h>
-#include <openssl/ecdsa.h>
-
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L // 3.0.0
-#define JWKGEN_OPENSSL_3_0
-#include <openssl/types.h>
-#include <openssl/core_names.h>
-#endif
+#include "jwk_generator/openssl_wrapper.hpp"
 
 namespace jwk_generator {
     template<size_t shaBits>
@@ -65,7 +56,7 @@ namespace jwk_generator {
         }
         public:
         static constexpr size_t pointSize = bits_to_point_size();
-        std::shared_ptr<EVP_PKEY> keyPair;
+        openssl::EVPPKey keyPair;
         std::string pointX;
         std::string pointY;
 
@@ -77,54 +68,49 @@ namespace jwk_generator {
             using namespace detail;
 
 #ifdef JWKGEN_OPENSSL_3_0
-            keyPair = {EVP_EC_gen(ecdsa_bit_to_curve()), EVP_PKEY_free};
+            keyPair = {[]() { return EVP_EC_gen(ecdsa_bit_to_curve()); }};
             if (!keyPair) {
                 throw openssl_error("Unable to generate ec key: ");
             }
             BIGNUM* xBN = nullptr;
-            if (!EVP_PKEY_get_bn_param(keyPair.get(), OSSL_PKEY_PARAM_EC_PUB_X, &xBN)) {
+            if (!EVP_PKEY_get_bn_param(keyPair, OSSL_PKEY_PARAM_EC_PUB_X, &xBN)) {
                 throw openssl_error("Unable to extract coordinates key: ");
             }
 
             BIGNUM* yBN = nullptr;
-            if (!EVP_PKEY_get_bn_param(keyPair.get(), OSSL_PKEY_PARAM_EC_PUB_Y, &yBN)) {
+            if (!EVP_PKEY_get_bn_param(keyPair, OSSL_PKEY_PARAM_EC_PUB_Y, &yBN)) {
                 throw openssl_error("Unable extract coordinates from key: ");
             }
 #else
-            // don't wrap in smart pointer because the EVP own it
-            std::shared_ptr<EC_GROUP> groupShared = {EC_GROUP_new_by_curve_name(ecdsa_bit_to_curve()), EC_GROUP_free};
-            const EC_GROUP* group = groupShared.get();
+            auto group = openssl::ECGroup ([]() { return EC_GROUP_new_by_curve_name(ecdsa_bit_to_curve()); });
+            auto ec = openssl::ECKey::allocate();
 
-            EC_KEY* ec = EC_KEY_new();
             if (!EC_KEY_set_group(ec, group)) {
-                EC_KEY_free(ec);
                 throw openssl_error("Unable to generate ec key: ");
             }
             if (!EC_KEY_generate_key(ec)) {
-                EC_KEY_free(ec);
                 throw openssl_error("Unable to generate ec key: ");
             }
-            keyPair = {EVP_PKEY_new(), EVP_PKEY_free};
+            keyPair = openssl::EVPPKey::allocate();
             if (!keyPair) {
-                EC_KEY_free(ec);
-                throw openssl_error("Unable to generate ec key: ");
-            }
-            EVP_PKEY* pkey = keyPair.get();
-            if (!EVP_PKEY_assign_EC_KEY(pkey, ec)) {
                 throw openssl_error("Unable to generate ec key: ");
             }
 
-            std::shared_ptr<BIGNUM> xShared = {BN_new(), BN_free};
-            BIGNUM* xBN = xShared.get();
+            // release it now as ownership transfers to the key pair
+            EC_KEY* ecPtr = ec.release();
+            if (!EVP_PKEY_assign_EC_KEY(keyPair, ecPtr)) {
+                throw openssl_error("Unable to generate ec key: ");
+            }
+
+            openssl::BigNum xBN = openssl::BigNum::allocate();
             if (!xBN) {
                 throw openssl_error("Unable to allocate BN: ");
             }
-            std::shared_ptr<BIGNUM> yShared = {BN_new(), BN_free};
-            BIGNUM* yBN = yShared.get();
+            openssl::BigNum yBN = openssl::BigNum::allocate();
             if (!yBN) {
                 throw openssl_error("Unable to allocate BN: ");
             }
-            auto point = EC_KEY_get0_public_key(ec);
+            auto point = EC_KEY_get0_public_key(ecPtr);
             if (!EC_POINT_get_affine_coordinates(group, point, xBN, yBN, NULL)) {
                 throw openssl_error("Unable to extract coordinates from key: ");
             }

@@ -2,22 +2,14 @@
 
 #include "jwk_generator/libs/json.hpp"
 #include "jwk_generator/errors.hpp"
-
-#include <openssl/rsa.h>
-#include "openssl/evp.h"
-
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L // 3.0.0
-#define JWKGEN_OPENSSL_3_0
-#include <openssl/types.h>
-#include <openssl/core_names.h>
-#endif
+#include "jwk_generator/openssl_wrapper.hpp"
 
 namespace jwk_generator {
     template<size_t shaBits>
     struct RSAKey {
         public:
         static constexpr const size_t nBits = 2048;
-        std::shared_ptr<EVP_PKEY> keyPair;
+        openssl::EVPPKey keyPair;
         std::string modulous;
         std::string exponent;
 
@@ -29,45 +21,41 @@ namespace jwk_generator {
             using namespace detail;
 
 #ifdef JWKGEN_OPENSSL_3_0
-            keyPair = {EVP_RSA_gen(nBits), EVP_PKEY_free};
+            keyPair = {[]() { return EVP_RSA_gen(nBits); }};
             if (!keyPair) {
                 throw openssl_error("Unable to generate rsa key: ");
             }
 
             BIGNUM* modBN = nullptr;
-            if (!EVP_PKEY_get_bn_param(keyPair.get(), OSSL_PKEY_PARAM_RSA_N, &modBN)) {
+            if (!EVP_PKEY_get_bn_param(keyPair, OSSL_PKEY_PARAM_RSA_N, &modBN)) {
                 throw openssl_error("Unable to retrieve public key: ");
             }
 
             BIGNUM* exBN = nullptr;
-            if (!EVP_PKEY_get_bn_param(keyPair.get(), OSSL_PKEY_PARAM_RSA_E, &exBN)) {
+            if (!EVP_PKEY_get_bn_param(keyPair, OSSL_PKEY_PARAM_RSA_E, &exBN)) {
                 throw openssl_error("Unable to retrieve public key: ");
             }
 #else
-            std::shared_ptr<BIGNUM> exShared = {BN_new(), BN_free};
-            if (!exShared) {
+            auto exBN = openssl::BigNum::allocate();
+            if (!exBN) {
                 throw openssl_error("Unable to allocate BN: ");
             }
-            BIGNUM* exBN = exShared.get();
             BN_set_word(exBN, 65537);
 
-            // rsa becomes owned by the evp, so don't wrap in smart pointer
-            RSA* rsa = RSA_new();
+            auto rsa = openssl::RSA::allocate();
             if (!RSA_generate_key_ex(rsa, nBits, exBN, NULL)) {
-                RSA_free(rsa);
                 throw openssl_error("Unable to generate rsa key: ");
             }
 
-            keyPair = {EVP_PKEY_new(), EVP_PKEY_free};
+            keyPair = openssl::EVPPKey::allocate();
             if (!keyPair) {
-                RSA_free(rsa);
                 throw openssl_error("Unable to generate rsa key: ");
             }
-            EVP_PKEY* pkey = keyPair.get();
-            if (!EVP_PKEY_assign_RSA(pkey, rsa)) {
+            RSA* rsaPtr = rsa.release();
+            if (!EVP_PKEY_assign_RSA(keyPair, rsaPtr)) {
                 throw openssl_error("Unable to generate rsa key: ");
             }
-            const BIGNUM* modBN = RSA_get0_n(rsa);
+            const BIGNUM* modBN = RSA_get0_n(rsaPtr);
 #endif
 
             size_t len = BN_num_bytes(modBN);
